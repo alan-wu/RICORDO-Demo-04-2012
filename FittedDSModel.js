@@ -7,6 +7,9 @@ filename5 = "LVCanineModel_Transformed_EndoTrans.exelem";
 filename6 = "LVCanineModel_Transformed_EndoTrans.exnode";
 textureRegions = new Array();
 stage = 0;
+proteinNames = ["none","clcn1","SCN5A", "kvlqt1"];
+cardiacModelNames = ["none", "biventricular", "One chamber", "LV", "RV", "full heart"];
+wsGimiasURL = "http://ricordo.insigneo.org:9090/axis2/services/wsGimias";
 
 function ShowHide(divId)
 {
@@ -168,6 +171,8 @@ function getDownloadsPointReadyFunction(zincPluginIn, BTEndoItemIn, BTEpiItemIn)
 			rendition.endChange();
 		}
 		zincPlugin.sceneViewer.viewAll();
+		ShowHide('now_loading_text');
+  		ShowHide('next_button');
 	}			
 }
 
@@ -205,8 +210,6 @@ function callCardiofitService()
 	
   	var values = new Array();
   	var proxy = "http://130.216.208.77";
-  	ShowHide('now_loading_text');
-  	ShowHide('next_button');
 	$.ajax
 	({
 		type: "POST",
@@ -230,8 +233,6 @@ function callCardiofitService()
 			filename5 = proxy + fileroot + "/DS/"+ files['DS'][4];
 			filename6 = proxy + fileroot + "/DS/"+ files['DS'][5];
 			drawPoint();
-			ShowHide('now_loading_text');
-			ShowHide('next_button');
 		},
 		error: function(x,y,z)
 		{
@@ -343,7 +344,7 @@ function visualiseProteinConcentration(zincPlugin, region)
 {
 	var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
 	var rendition = graphicsModule.getRendition(region);
-	rendition.executeCommand('node_points glyph sphere general size "2*2*2" centre 0,0,0 select_on material default data concentration spectrum default');
+	rendition.executeCommand('node_points glyph sphere general size "3*3*3" centre 0,0,0 select_on material default data concentration spectrum default');
 	var spectrum = graphicsModule.findSpectrumByName("default");
 	spectrum.executeCommand("autorange");
 }
@@ -390,17 +391,17 @@ function createAndDrawProteinConcentration(dataArray)
 	visualiseProteinConcentration(zincPlugin, region);
 }
 
-function getFromWebServiceJSONToArray()
+function getFromWebServiceJSONToArray(identifier)
 {
   	var values = new Array();
   	ShowHide('now_loading_text');
 	$.ajax({
 	type: "GET",
-	url: "http://lxbisel.macs.hw.ac.uk:8080/ricordo/getProteinDistribution/clcn1",
+	url: "http://lxbisel.macs.hw.ac.uk:8080/ricordo/getProteinDistribution/"+proteinNames[identifier],
 	dataType: "json",
 	success: function(data) 
 	{
-    	$.each(data['clcn1'], function(key, val) 
+    	$.each(data[proteinNames[identifier]], function(key, val) 
     	{
 			values.push([parseFloat(val['x']), parseFloat(val['y']),parseFloat(val['z']),parseFloat(val['value'])]);
     	});
@@ -412,7 +413,6 @@ function getFromWebServiceJSONToArray()
 		alert("error" + "ready state: " + x.readyState + x.statusText);
 	}
 });
-
 }
 
 function removeDataPoint()
@@ -438,9 +438,9 @@ function displayConcentration()
 {
 	removeDataPoint();
 	var selector = document.getElementById('proteinSelector');
-	 if (selector.value == 2)
+	if (selector.value != 1 && selector.value <=4)
   	{
-  		getFromWebServiceJSONToArray();
+  		getFromWebServiceJSONToArray(selector.value - 1);
   	}
 }
 
@@ -453,6 +453,53 @@ function sceneViewerReadyFunction()
 	zincPlugin.context.getDefaultGraphicsModule().defineStandardMaterials();
 }
 
+function CallCardiacFitting_callBack(r, soapResponse)
+{
+	if(r.length + "" == "undefined")
+	{
+		alert("Error: " + r.message + "\n" + r.fileName);
+	}
+	else
+	{
+		triggerDrawPointService();
+	}
+}
+
+function CallCardiacFitting()
+{
+	var parameters = new SOAPClientParameters();
+	parameters.add("inputMesh", "/home/ubuntu/webservice-data/init-javascript.vtk");
+	parameters.add("inputImage", "/home/ubuntu/SC-HF-I-01-VTK/ST07.vtk");
+	parameters.add("outputMesh", "/home/ubuntu/webservice-data/fitted-javascript.vtk");
+	parameters.add("outputMeshEpi", "/home/ubuntu/webservice-data/fitted-javascript-epi.vtk");
+	parameters.add("outputMeshEndo", "/home/ubuntu/webservice-data/fitted-javascript-endo.vtk");
+	SOAPClient.invoke(wsGimiasURL, "Cardiac_Fitting", parameters, true, CallCardiacFitting_callBack);
+}
+
+function CallCardiacInitialization_callBack(r, soapResponse)
+{
+	if(r.length + "" != "undefined")
+	{
+		CallCardiacFitting();
+	}
+	else
+	{
+		alert("Error");
+	}
+}
+
+function CallCardiacInitialization()
+{
+  	ShowHide('now_loading_text');
+  	ShowHide('next_button');
+	var parameters = new SOAPClientParameters();
+	var selector = document.getElementById('mySelect');
+	parameters.add("cardiacModel", cardiacModelNames[selector.value - 1]);
+	parameters.add("landmarks", document.getElementById('initialization_landmarks').value);
+	parameters.add("outputMeshName", "/home/ubuntu/webservice-data/init-javascript.vtk");
+	SOAPClient.invoke(wsGimiasURL, "Cardiac_Initialization", parameters, true, CallCardiacInitialization_callBack);
+}
+
 function next()
 {
 	if (stage == 0)
@@ -462,13 +509,15 @@ function next()
 		ShowHide('radio');
 		ShowHide('select_patient_text');
 		ShowHide('select_segmentation_text');
+		ShowHide('initialization_landmarks_textbox');
 		ShowHide('mySelect');
 	}
 	if (stage == 1)
 	{
-		triggerDrawPointService();
 		ShowHide('select_segmentation_text');
+		ShowHide('initialization_landmarks_textbox');
 		ShowHide('mySelect');
+		CallCardiacInitialization();
 	}
 	if (stage == 2)
 	{
