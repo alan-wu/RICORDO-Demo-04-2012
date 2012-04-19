@@ -1,13 +1,13 @@
-	<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
   <head>
-    <title>Ricodo Demo</title>
+    <title>RICORDO Demo</title>
 
 <!--
 	This example demonstrates part of the functionalities available using the zinc plugin. 
 -->
 	<script src="FittedDSModel.js" type="text/javascript" charset="utf-8"></script>
-
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
 <style type="text/css">
 
 
@@ -49,32 +49,91 @@ table.noborder {
   </head>
 
   <body>
-	 <p> Ricodo Demo 04/2012<br/>
+	 <p> RICORDO Demo 04/2012<br/>
 	 </p>
 <table class="noborder">
 <tr>
 <td>
 <form id="testform">
+<table>
+  <tr>
+    <div id="patient_text"  style="DISPLAY: block">
+  		<p>List of patients</p>
+  	</div>
+  </tr>
+   <tr>
+	<div id="radio"  style="DISPLAY: block">
+		<input type="radio" id="radio1" name="radio" /><label for="radio1">Patient 1</label>
+		<input type="radio" id="radio2" name="radio" checked="checked" /><label for="radio2">Patient 2</label>
+		<input type="radio" id="radio3" name="radio" /><label for="radio3">Patient 3</label>
+	</div>
+  </tr> 
+  <tr>
+  	<div id="select_patient_text"  style="DISPLAY: block">
+  		<p>Select patient click next</p>
+  	</div>
+  	<div id="select_segmentation_text"  style="DISPLAY: none">
+  		<p>Select model type for segmentation</p>
+  		<p>then click next to segment</p>
+  	</div>
+  	 <td>
+		<select id="mySelect" style="DISPLAY: none">
+			<option value="1">none</option>
+  			<option value="2">biventricular</option>
+			<option value="3">Two chamber</option>
+  			<option value="4">LV</option>
+  			<option value="5">RV</option>
+  			<option value="6">full heart</option>
+		</select>
+	</td>
+  </tr>
+  <tr>
+  	 <td>
+  	 	<div id="proteinSelector_panel"  style="DISPLAY: none">
+  	 		<p>Select protein</p>
+			<select id="proteinSelector">
+				<option value="1">none</option>
+	  			<option value="2">clcn1</option>
+			</select>
+		 </div>
+	</td>
+  </tr>
+  <tr>
+  	 <td>
+    	<div id="next_to_fit_mesh_text"  style="DISPLAY: none">
+  	  		<p>Click next to fit mesh</p>
+  	  	</div>
+	</td>
+  </tr>
+  <tr>
+  	 <td>
+    	<div id="now_loading_text"  style="DISPLAY: none">
+  	  		<p>Now Loading...</p>
+  	  	</div>
+	</td>
+  </tr>
+  
+  <tr>
+  	 <td>
+    	<div id="click_next_to_see_density_text"  style="DISPLAY: none">
+  	  		<p>Click next to see density</p>
+  	  	</div>
+	</td>
+  </tr>
+  <tr>
+  	 <td> 
+    	<input id="next_button" type=button OnClick="next()" value="Next" style="DISPLAY: block">
+    </td>	
+  </tr>
+ </tr>
+</table>
 </td>
 
 </form>
-<!--
-<td>
-	<div style="position:relative;">
-	<div style="position:relative; z-index: 0">
-		<embed type="application/x-zinc-plugin" id="zincplugin" width="600" height="600"></div>
-		<script>
-			sceneViewerReadyFunction();
-		</script>
-		<div style="position:absolute; top: 50; z-index: 1">This text is above the plugin</div>
-		<div style="position:absolute; top: 80; z-index: -1">This text is underneath the plugin</div>
-	</div>
-</td>
--->
 
 <td>
 	<div style="position:relative;">
-	<div style="position:relative; z-index: 0">
+	<div style="position:relative; ;z-index: 0">
 		<object id="zincplugin1"  type="application/x-zinc-plugin" width="600" height="600" onsceneviewerready="sceneViewerReadyFunction()"></div>
 		<div style="position:absolute; top: 50; z-index: 1">This text is above the plugin</div>
 		<div style="position:absolute; top: 80; z-index: -1">This text is underneath the plugin</div>
@@ -84,17 +143,16 @@ table.noborder {
 </tr>
 </table>
 
-	 <p>The zinc website is
-		<a href="http://www.cmiss.org/cmgui/zinc">http://www.cmiss.org/cmgui/zinc</a>.
-		On this website are examples of existing zinc applications your can try, a bug/feature/ideas tracker
-		and other information.<br/>
+	 <p>This demo requires Zinc0.7.0.0 to run. Please see 
+	 	<a href="http://www.cmiss.org/cmgui/zinc">http://www.cmiss.org/cmgui/zinc</a> for more information.
+		<br/>
 	 </p>
 
 
     <hr>
-<!-- Created: Thu Sep 27 11:22:57 NZST 2007 -->
+<!-- Created: Mon Apr 16 11:22:57 NZST 2012 By Alan Wu -->
 <!-- hhmts start -->
-Last modified: Mon Apr 16  NZDT 2012
+Last modified: Thursday Apr 19  NZDT 2012
 <!-- hhmts end -->
   </body>
 </html>
