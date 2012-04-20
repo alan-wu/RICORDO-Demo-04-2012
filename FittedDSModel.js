@@ -114,7 +114,8 @@ function drawTexture()
 	var zincPlugin = document.getElementById('zincplugin1');
 	if (zincPlugin)
 	{
-		var baseURL = "ftp://ftp.bioeng.auckland.ac.nz/pub/ywan215/VisualisingDICOM/";
+		//var baseURL = "ftp://ftp.bioeng.auckland.ac.nz/pub/ywan215/VisualisingDICOM/";
+		var baseURL = "ftp://ftp.bioeng.auckland.ac.nz/pub/ywan215/VisualisingDICOM_WithSegmentedData/";
 		var imageURL = "Image_PNG/SA_00X.png";
 		var textureBoxURL = "TextureBox_PatientCoor/tex_block_SA_X";
 		var i = 0;
@@ -137,45 +138,6 @@ function drawTexture()
 	}
 }
 
-function getDownloadsPointReadyFunction(zincPluginIn, BTEndoItemIn, BTEpiItemIn)
-{
-	var zincPlugin = zincPluginIn;
-	var BTEndoItem = BTEndoItemIn;
-	var BTEpiItem = BTEpiItemIn;
-
-	return function()
-	{
-		var rootRegion = zincPlugin.context.getDefaultRegion();
-		var BT_epi_region = rootRegion.createChild("BT_epi");
-		var BT_endo_region = rootRegion.createChild("BT_endo");
-		var BTepistreamInformation = BT_epi_region.createStreamInformation();
-		BTepistreamInformation.createResourceDownloadItem(BTEpiItem);
-		BT_epi_region.read(BTepistreamInformation);
-		var BTendostreamInformation = BT_endo_region.createStreamInformation();
-		BTendostreamInformation.createResourceDownloadItem(BTEndoItem);
-		BT_endo_region.read(BTendostreamInformation);
-
-		var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
-		if (BT_epi_region)
-		{
-			var rendition = graphicsModule.getRendition(BT_epi_region);
-			rendition.beginChange();
-			rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material blue');
-			rendition.endChange();
-		}
-		if (BT_endo_region)
-		{
-			var rendition = graphicsModule.getRendition(BT_endo_region);
-			rendition.beginChange();
-			rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material gold');
-			rendition.endChange();
-		}
-		zincPlugin.sceneViewer.viewAll();
-		ShowHide('now_loading_text');
-  		ShowHide('next_button');
-	}			
-}
-
 function removeTextures()
 {
 	var zincPlugin = document.getElementById('zincplugin1');
@@ -194,57 +156,214 @@ function removeTextures()
 	textureRegions = new Array();
 }
 
-function drawPoint()
+function drawPointWithSurfaceData(regionName, materialName, dataArray)
 {
 	var zincPlugin = document.getElementById('zincplugin1');
 	var downloadManager = zincPlugin.createDownloadManager();
-	removeTextures();
-	var BackTransformedUPFFinalRotated_EndoItem = downloadManager.addURI(filename1);
-	var BackTransformedUPFFinalRotated_EpiItem = downloadManager.addURI(filename2);
-	downloadManager.addCompletionCallback(
-		getDownloadsPointReadyFunction(zincPlugin, BackTransformedUPFFinalRotated_EndoItem,BackTransformedUPFFinalRotated_EpiItem));
+	var rootRegion = zincPlugin.context.getDefaultRegion();
+	var region = rootRegion.createChild(regionName);
+	var fieldModule = region.getFieldModule();
+	fieldModule.beginChange();
+	var coordinatesField = fieldModule.createFiniteElement(3);
+	coordinatesField.setName("coordinates");
+	coordinatesField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_COORDINATE, 1);
+	coordinatesField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_MANAGED, 1);
+	var nodeset = fieldModule.findNodesetByName("cmiss_nodes");
+	var nodeTemplate1 = nodeset.createNodeTemplate();
+	nodeTemplate1.defineField(coordinatesField);
+	var node_coordinates = [ 0, 0, 0 ];
+	var fieldCache = fieldModule.createCache();
+	var i = 0;
+	var node;
+	var size = dataArray.length;
+	for (i=0; i<size; i++)
+	{
+		node_coordinates[0] = dataArray[i][0];
+		node_coordinates[1] = dataArray[i][1];
+		node_coordinates[2] = dataArray[i][2];
+		node = nodeset.createNode(i+1, nodeTemplate1);
+		fieldCache.setNode(node);
+		coordinatesField.assignReal(fieldCache, /*number_of_values*/3, node_coordinates);
+		node = null;
+	}
+
+	var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
+	if (region)
+	{
+		var rendition = graphicsModule.getRendition(region);
+		rendition.beginChange();
+		rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material ' + materialName);
+		rendition.endChange();
+	}
+	zincPlugin.sceneViewer.viewAll();
 }
 
-function callCardiofitService()
+
+function getDownloadsFirstPointReadyFunction(zincPluginIn, BTEndoItemIn, BTEpiItemIn)
 {
+	var zincPlugin = zincPluginIn;
+	var BTEndoItem = BTEndoItemIn;
+	var BTEpiItem = BTEpiItemIn;
 	
-  	var values = new Array();
-  	var proxy = "http://130.216.208.77";
-	$.ajax
-	({
-		type: "POST",
-		url: "http://130.216.208.77/cardiofitter/default/fitting",
-		data: { 'mesh.name': "patient_1", 
-	        'epi.ds': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph11_epi_DS.vtp",
-            'epi.ed': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph07_epi_ES.vtp",
-            'epi.es': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph19_epi_ED.vtp",
-            'endo.ds': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph11_endo_DS.vtp",
-            'endo.ed': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph07_endo_ES.vtp",
-            'endo.es': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph19_endo_ED.vtp" },
-		dataType: "json",
-		success: function(data) 
+	return function()
+	{
+		var rootRegion = zincPlugin.context.getDefaultRegion();
+		var BT_epi_region = rootRegion.createChild("firstBT_epi");
+		var BT_endo_region = rootRegion.createChild("firstBT_endo");
+		var BTepistreamInformation = BT_epi_region.createStreamInformation();
+		BTepistreamInformation.createResourceDownloadItem(BTEpiItem);
+		BT_epi_region.read(BTepistreamInformation);
+		var BTendostreamInformation = BT_endo_region.createStreamInformation();
+		BTendostreamInformation.createResourceDownloadItem(BTEndoItem);
+		BT_endo_region.read(BTendostreamInformation);
+		
+		var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
+		if (BT_epi_region)
 		{
-			var fileroot = data['fileroot'];
-			var files = data['files'];
-			filename1 = proxy + fileroot + "/DS/"+ files['DS'][0];
-			filename2 = proxy + fileroot + "/DS/"+ files['DS'][1];
-			filename3 = proxy + fileroot + "/DS/"+ files['DS'][2];
-			filename4 = proxy + fileroot + "/DS/"+ files['DS'][3];
-			filename5 = proxy + fileroot + "/DS/"+ files['DS'][4];
-			filename6 = proxy + fileroot + "/DS/"+ files['DS'][5];
-			drawPoint();
-		},
-		error: function(x,y,z)
-		{
-			alert("error" + "ready state: " + x.readyState + x.statusText);
+			var rendition = graphicsModule.getRendition(BT_epi_region);
+			rendition.beginChange();
+			rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material blue');
+			rendition.endChange();
 		}
-	
-	});
+		if (BT_endo_region)
+		{
+			var rendition = graphicsModule.getRendition(BT_endo_region);
+			rendition.beginChange();
+			rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material gold');
+			rendition.endChange();
+		}
+		ShowHide('now_loading_text');
+  		ShowHide('next_button');
+	}
+}
+
+function drawFirstPoints()
+{
+	var zincPlugin = document.getElementById('zincplugin1');
+	var downloadManager = zincPlugin.createDownloadManager();
+	//removeTextures();
+	var BackTransformedUPFFinalRotated_EndoItem = downloadManager.addURI("ftp://ftp.bioeng.auckland.ac.nz/pub/ywan215/VisualisingDICOM_WithSegmentedData/SC-N-02_ds_lvendo.exdata");
+	var BackTransformedUPFFinalRotated_EpiItem = downloadManager.addURI("ftp://ftp.bioeng.auckland.ac.nz/pub/ywan215/VisualisingDICOM_WithSegmentedData/SC-N-02_ds_lvepi.exdata");
+	downloadManager.addCompletionCallback(
+	getDownloadsFirstPointReadyFunction(zincPlugin, BackTransformedUPFFinalRotated_EndoItem,BackTransformedUPFFinalRotated_EpiItem));
+}
+
+function upfVTPToExdata(regionName, materialName, upfVtpString)
+{
+	var surface_data=new Array();
+	var lines = upfVtpString.split("\n");
+	var i = 0;
+	var cont = 1;
+	var setData = 0;
+	for (i = 0; (i <lines.length && cont == 1); i ++)
+	{
+		var tempString = lines[i];
+
+		if (lines[i].search("POLYGONS") != -1)
+		{
+			cont = 0;	
+		}
+		if (setData == 1 && cont == 1)
+		{
+			var line_data = lines[i].split(" ");
+			var j = 0;
+			var myArray = [0.0, 0.0, 0.0];
+			for (j = 0; (j < line_data.length -1 );)
+			{
+				myArray[0] = parseFloat(line_data[j]);
+				j++;
+				myArray[1] = parseFloat(line_data[j]);
+				j++;
+				myArray[2] = parseFloat(line_data[j]);
+				j++;
+				surface_data.push(myArray);
+			}
+		}
+		if (lines[i].search("POINTS") != -1)
+		{
+			setData = 1;
+		}
+	}
+	drawPointWithSurfaceData(regionName, materialName, surface_data);
 }
 
 function triggerDrawPointService()
 {
-	callCardiofitService();
+	$.ajax({
+	type: "GET",
+	url: "file:///E:/work/Ricordo/RICORDO-Demo-04-2012/fitted-javascript-endo.vtk",
+	dataType: "text",
+	success: function(myFile)
+	{
+		upfVTPToExdata("BT_endo", "gold", myFile);
+	},
+	error: function(x,y,z)
+	{
+		alert("error" + "ready state: " + x.readyState + x.statusText);
+	}
+	});
+	$.ajax({
+	type: "GET",
+	url: "file:///E:/work/Ricordo/RICORDO-Demo-04-2012/fitted-javascript-epi.vtk",
+	dataType: "text",
+	success: function(mySecondFile)
+	{
+		upfVTPToExdata("BT_epi", "blue", mySecondFile);
+	},
+	error: function(x,y,z)
+	{
+		alert("error" + "ready state: " + x.readyState + x.statusText);
+	}
+	});
+}
+
+
+function CallCardiacFitting_callBack(r, soapResponse)
+{
+	if(r.length + "" == "undefined")
+	{
+		alert("Error: " + r.message + "\n" + r.fileName);
+	}
+	else
+	{
+		//triggerDrawPointService();
+		drawFirstPoints();
+	}
+}
+
+function CallCardiacFitting()
+{
+	var parameters = new SOAPClientParameters();
+	parameters.add("inputMesh", "/home/ubuntu/webservice-data/init-javascript.vtk");
+	parameters.add("inputImage", "/home/ubuntu/SC-HF-I-01-VTK/ST07.vtk");
+	parameters.add("outputMesh", "/home/ubuntu/webservice-data/fitted-javascript.vtk");
+	parameters.add("outputMeshEpi", "/home/ubuntu/webservice-data/fitted-javascript-epi.vtk");
+	parameters.add("outputMeshEndo", "/home/ubuntu/webservice-data/fitted-javascript-endo.vtk");
+	SOAPClient.invoke(wsGimiasURL, "Cardiac_Fitting", parameters, true, CallCardiacFitting_callBack);
+}
+
+function CallCardiacInitialization_callBack(r, soapResponse)
+{
+	if(r.length + "" != "undefined")
+	{
+		CallCardiacFitting();
+	}
+	else
+	{
+		alert("Error");
+	}
+}
+
+function CallCardiacInitialization()
+{
+  	ShowHide('now_loading_text');
+  	ShowHide('next_button');
+	var parameters = new SOAPClientParameters();
+	var selector = document.getElementById('mySelect');
+	parameters.add("cardiacModel", cardiacModelNames[selector.value - 1]);
+	parameters.add("landmarks", document.getElementById('initialization_landmarks').value);
+	parameters.add("outputMeshName", "/home/ubuntu/webservice-data/init-javascript.vtk");
+	SOAPClient.invoke(wsGimiasURL, "Cardiac_Initialization", parameters, true, CallCardiacInitialization_callBack);
 }
 
 function getDownloadsUnfittedModelReadyFunction(zincPluginIn, LVEndoElementItemIn, LVEndoNodeItemIn)
@@ -256,7 +375,6 @@ function getDownloadsUnfittedModelReadyFunction(zincPluginIn, LVEndoElementItemI
 	return function()
 	{
 		var rootRegion = zincPlugin.context.getDefaultRegion();
-
 		var LV_region = rootRegion.createChild("LV");
 		var LVstreamInformation = LV_region.createStreamInformation();
 		LVstreamInformation.createResourceDownloadItem(LVEndoElementItem);
@@ -286,6 +404,116 @@ function drawUnfittedModel()
 	downloadManager.addCompletionCallback(
 		getDownloadsUnfittedModelReadyFunction(zincPlugin,
 		LVCanineModel_Transformed_EndoTransElementItem,	LVCanineModel_Transformed_EndoTransNodeItem));	
+}
+
+function getDownloadsPointsReadyFunction(zincPluginIn, BTEndoItemIn, BTEpiItemIn)
+{
+	var zincPlugin = zincPluginIn;
+	var BTEndoItem = BTEndoItemIn;
+	var BTEpiItem = BTEpiItemIn;
+	
+	return function()
+	{
+		var rootRegion = zincPlugin.context.getDefaultRegion();
+		var BT_epi_region = rootRegion.createChild("BT_epi");
+		var BT_endo_region = rootRegion.createChild("BT_endo");
+		var BTepistreamInformation = BT_epi_region.createStreamInformation();
+		BTepistreamInformation.createResourceDownloadItem(BTEpiItem);
+		BT_epi_region.read(BTepistreamInformation);
+		var BTendostreamInformation = BT_endo_region.createStreamInformation();
+		BTendostreamInformation.createResourceDownloadItem(BTEndoItem);
+		BT_endo_region.read(BTendostreamInformation);
+		
+		var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
+		if (BT_epi_region)
+		{
+			var rendition = graphicsModule.getRendition(BT_epi_region);
+			rendition.beginChange();
+			rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material blue');
+			rendition.endChange();
+		}
+		if (BT_endo_region)
+		{
+			var rendition = graphicsModule.getRendition(BT_endo_region);
+			rendition.beginChange();
+			rendition.executeCommand('node_points glyph sphere general size "1*1*1" centre 0,0,0 select_on material gold');
+			rendition.endChange();
+		}
+		zincPlugin.sceneViewer.viewAll();
+	}
+}
+
+function drawPoints()
+{
+	var zincPlugin = document.getElementById('zincplugin1');
+	var downloadManager = zincPlugin.createDownloadManager();
+	var BackTransformedUPFFinalRotated_EndoItem = downloadManager.addURI(filename1);
+	var BackTransformedUPFFinalRotated_EpiItem = downloadManager.addURI(filename2);
+	downloadManager.addCompletionCallback(
+	getDownloadsPointsReadyFunction(zincPlugin, BackTransformedUPFFinalRotated_EndoItem,BackTransformedUPFFinalRotated_EpiItem));
+}
+
+function removeFirstPoints()
+{
+	var zincPlugin = document.getElementById('zincplugin1');
+	var rootRegion = zincPlugin.context.getDefaultRegion();
+	var BT_epi_region = rootRegion.findSubregionAtPath("firstBT_epi");
+	var BT_endo_region = rootRegion.findSubregionAtPath("firstBT_endo");
+	var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
+	if (BT_epi_region)
+	{
+		var rendition = graphicsModule.getRendition(BT_epi_region);
+		rendition.removeAllGraphics();
+	}
+	if (BT_endo_region)
+	{
+		var rendition = graphicsModule.getRendition(BT_endo_region);
+		rendition.removeAllGraphics();
+	}
+}
+
+function callCardiofitService()
+{
+  	var values = new Array();
+  	var proxy = "http://130.216.208.77";
+	$.ajax
+	({
+		type: "POST",
+		url: "http://130.216.208.77/cardiofitter/default/fitting",
+		data: { 'mesh.name': "patient_1", 
+	        'epi.ds': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph11_epi_DS.vtp",
+            'epi.ed': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph07_epi_ES.vtp",
+            'epi.es': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph19_epi_ED.vtp",
+            'endo.ds': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph11_endo_DS.vtp",
+            'endo.ed': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph07_endo_ES.vtp",
+            'endo.es': "http://130.216.208.77:8380/pmr/w/tommy/sc-n-02/rawfile/2ca1558b76ec38e56cdd6a1d661447e0590f5e06/ph19_endo_ED.vtp" },
+		dataType: "json",
+		success: function(data) 
+		{
+			var fileroot = data['fileroot'];
+			var files = data['files'];
+			filename1 = proxy + fileroot + "/DS/"+ files['DS'][0];
+			filename2 = proxy + fileroot + "/DS/"+ files['DS'][1];
+			filename3 = proxy + fileroot + "/DS/"+ files['DS'][2];
+			filename4 = proxy + fileroot + "/DS/"+ files['DS'][3];
+			filename5 = proxy + fileroot + "/DS/"+ files['DS'][4];
+			filename6 = proxy + fileroot + "/DS/"+ files['DS'][5];
+			removeFirstPoints();
+			removeTextures();
+			drawPoints();
+			drawUnfittedModel();
+		},
+		error: function(x,y,z)
+		{
+			alert("error" + "ready state: " + x.readyState + x.statusText);
+		}
+	
+	});
+}
+
+function triggerDrawUnfittedModel()
+{
+	callCardiofitService();
 }
 
 function getDownloadsFittedModelReadyFunction(zincPluginIn, fittedElementItemIn, fittedNodeItemIn)
@@ -347,72 +575,104 @@ function visualiseProteinConcentration(zincPlugin, region)
 	rendition.executeCommand('node_points glyph sphere general size "3*3*3" centre 0,0,0 select_on material default data concentration spectrum default');
 	var spectrum = graphicsModule.findSpectrumByName("default");
 	spectrum.executeCommand("autorange");
+	ShowHide('click_next_to_see_density_text');
+	ShowHide('next_button');
 }
 
-function createAndDrawProteinConcentration(dataArray)
+function removeAllProteinGraphics()
 {
 	var zincPlugin = document.getElementById('zincplugin1');
 	var rootRegion = zincPlugin.context.getDefaultRegion();
-	var region = rootRegion.createChild("Protein_level");
-	var fieldModule = region.getFieldModule();
-	
-	fieldModule.beginChange();
-	
-	var coordinatesField = fieldModule.createFiniteElement(3);
-	coordinatesField.setName("coordinates");
-	coordinatesField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_COORDINATE, 1);
-	coordinatesField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_MANAGED, 1);
-	var concentrationField = fieldModule.createFiniteElement(1);
-	concentrationField.setName("concentration");
-	concentrationField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_COORDINATE, 0);
-	concentrationField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_MANAGED, 1);
-	var nodeset = fieldModule.findNodesetByName("cmiss_nodes");
-	var nodeTemplate1 = nodeset.createNodeTemplate();
-	nodeTemplate1.defineField(coordinatesField);
-	nodeTemplate1.defineField(concentrationField);
-	var node_coordinates = [ 0, 0, 0 ];
-	var concentrationValue = new Array();
-	var fieldCache = fieldModule.createCache();
+	var graphicsModule = zincPlugin.context.getDefaultGraphicsModule();
 	var i = 0;
-	var node;
-	var size = dataArray.length;
-	for (i=0; i<size; i++)
+	for (i = 1; i < proteinNames.length; i++)
 	{
-		node_coordinates[0] = dataArray[i][0];
-		node_coordinates[1] = dataArray[i][1];
-		node_coordinates[2] = dataArray[i][2];
-		concentrationValue[0] = dataArray[i][3];
-		node = nodeset.createNode(i+1, nodeTemplate1);
-		fieldCache.setNode(node);
-		coordinatesField.assignReal(fieldCache, /*number_of_values*/3, node_coordinates);
-		concentrationField.assignReal(fieldCache, /*number_of_values*/1, concentrationValue);
-		node = null;
+		var region = rootRegion.findSubregionAtPath(proteinNames[i]);
+		if (region)
+		{
+			var rendition = graphicsModule.getRendition(region);
+			rendition.removeAllGraphics();
+		}
 	}
-	visualiseProteinConcentration(zincPlugin, region);
 }
 
-function getFromWebServiceJSONToArray(identifier)
+function createAndDrawProteinConcentration(region, dataArray)
 {
-  	var values = new Array();
-  	ShowHide('now_loading_text');
-	$.ajax({
-	type: "GET",
-	url: "http://lxbisel.macs.hw.ac.uk:8080/ricordo/getProteinDistribution/"+proteinNames[identifier],
-	dataType: "json",
-	success: function(data) 
+	var zincPlugin = document.getElementById('zincplugin1');
+	var rootRegion = zincPlugin.context.getDefaultRegion();
+	if (region)
 	{
-    	$.each(data[proteinNames[identifier]], function(key, val) 
-    	{
-			values.push([parseFloat(val['x']), parseFloat(val['y']),parseFloat(val['z']),parseFloat(val['value'])]);
-    	});
-    	ShowHide('now_loading_text');
-    	createAndDrawProteinConcentration(values);
-	},
-	error: function(x,y,z)
-	{
-		alert("error" + "ready state: " + x.readyState + x.statusText);
+		var fieldModule = region.getFieldModule();
+		fieldModule.beginChange();
+		var coordinatesField = fieldModule.createFiniteElement(3);
+		coordinatesField.setName("coordinates");
+		coordinatesField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_COORDINATE, 1);
+		coordinatesField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_MANAGED, 1);
+		var concentrationField = fieldModule.createFiniteElement(1);
+		concentrationField.setName("concentration");
+		concentrationField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_COORDINATE, 0);
+		concentrationField.setAttributeInteger(coordinatesField.ATTRIBUTE.IS_MANAGED, 1);
+		var nodeset = fieldModule.findNodesetByName("cmiss_nodes");
+		var nodeTemplate1 = nodeset.createNodeTemplate();
+		nodeTemplate1.defineField(coordinatesField);
+		nodeTemplate1.defineField(concentrationField);
+		var node_coordinates = [ 0, 0, 0 ];
+		var concentrationValue = new Array();
+		var fieldCache = fieldModule.createCache();
+		var i = 0;
+		var node;
+		var size = dataArray.length;
+		for (i=0; i<size; i++)
+		{
+			node_coordinates[0] = dataArray[i][0];
+			node_coordinates[1] = dataArray[i][1];
+			node_coordinates[2] = dataArray[i][2];
+			concentrationValue[0] = dataArray[i][3];
+			node = nodeset.createNode(i+1, nodeTemplate1);
+			fieldCache.setNode(node);
+			coordinatesField.assignReal(fieldCache, /*number_of_values*/3, node_coordinates);
+			concentrationField.assignReal(fieldCache, /*number_of_values*/1, concentrationValue);
+			node = null;
+		}
 	}
-});
+}
+
+function getFromWebServiceJSONToArray(proteinName)
+{
+	var zincPlugin = document.getElementById('zincplugin1');
+	var rootRegion = zincPlugin.context.getDefaultRegion();
+	var region = rootRegion.findSubregionAtPath(proteinName);
+	if (region == null)
+	{
+  		var values = new Array();
+  		ShowHide('now_loading_text');
+		$.ajax({
+			type: "GET",
+			url: "http://lxbisel.macs.hw.ac.uk:8080/ricordo/getProteinDistribution/"+proteinName,
+			dataType: "json",
+			success: function(data) 
+			{
+    			$.each(data[proteinName], function(key, val) 
+    			{
+					values.push([parseFloat(val['x']), parseFloat(val['y']),parseFloat(val['z']),parseFloat(val['value'])]);
+    			});
+    			ShowHide('now_loading_text');
+    			region = rootRegion.createChild(proteinName);
+    			createAndDrawProteinConcentration(region, values);
+    			removeAllProteinGraphics();
+				visualiseProteinConcentration(zincPlugin, region);
+			},
+			error: function(x,y,z)
+			{
+				alert("error" + "ready state: " + x.readyState + x.statusText);
+			}
+		});
+	}
+	else
+	{
+	    removeAllProteinGraphics();
+		visualiseProteinConcentration(zincPlugin, region);
+	}
 }
 
 function removeDataPoint()
@@ -440,64 +700,18 @@ function displayConcentration()
 	var selector = document.getElementById('proteinSelector');
 	if (selector.value != 1 && selector.value <=4)
   	{
-  		getFromWebServiceJSONToArray(selector.value - 1);
+  		getFromWebServiceJSONToArray(proteinNames[selector.value - 1]);
   	}
 }
 
 /* This function is called when the primary scene is constructed and read */
 function sceneViewerReadyFunction()
 {
+	netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead");
 	var zincPlugin = document.getElementById('zincplugin1');
 	zincPlugin.sceneViewer.setBackgroundColourRGB(1.0, 1.0, 1.0);
 	ZN_OK = zincPlugin.OK;
 	zincPlugin.context.getDefaultGraphicsModule().defineStandardMaterials();
-}
-
-function CallCardiacFitting_callBack(r, soapResponse)
-{
-	if(r.length + "" == "undefined")
-	{
-		alert("Error: " + r.message + "\n" + r.fileName);
-	}
-	else
-	{
-		triggerDrawPointService();
-	}
-}
-
-function CallCardiacFitting()
-{
-	var parameters = new SOAPClientParameters();
-	parameters.add("inputMesh", "/home/ubuntu/webservice-data/init-javascript.vtk");
-	parameters.add("inputImage", "/home/ubuntu/SC-HF-I-01-VTK/ST07.vtk");
-	parameters.add("outputMesh", "/home/ubuntu/webservice-data/fitted-javascript.vtk");
-	parameters.add("outputMeshEpi", "/home/ubuntu/webservice-data/fitted-javascript-epi.vtk");
-	parameters.add("outputMeshEndo", "/home/ubuntu/webservice-data/fitted-javascript-endo.vtk");
-	SOAPClient.invoke(wsGimiasURL, "Cardiac_Fitting", parameters, true, CallCardiacFitting_callBack);
-}
-
-function CallCardiacInitialization_callBack(r, soapResponse)
-{
-	if(r.length + "" != "undefined")
-	{
-		CallCardiacFitting();
-	}
-	else
-	{
-		alert("Error");
-	}
-}
-
-function CallCardiacInitialization()
-{
-  	ShowHide('now_loading_text');
-  	ShowHide('next_button');
-	var parameters = new SOAPClientParameters();
-	var selector = document.getElementById('mySelect');
-	parameters.add("cardiacModel", cardiacModelNames[selector.value - 1]);
-	parameters.add("landmarks", document.getElementById('initialization_landmarks').value);
-	parameters.add("outputMeshName", "/home/ubuntu/webservice-data/init-javascript.vtk");
-	SOAPClient.invoke(wsGimiasURL, "Cardiac_Initialization", parameters, true, CallCardiacInitialization_callBack);
 }
 
 function next()
@@ -511,6 +725,7 @@ function next()
 		ShowHide('select_segmentation_text');
 		ShowHide('initialization_landmarks_textbox');
 		ShowHide('mySelect');
+
 	}
 	if (stage == 1)
 	{
@@ -521,7 +736,7 @@ function next()
 	}
 	if (stage == 2)
 	{
-		drawUnfittedModel();
+		triggerDrawUnfittedModel();
 		ShowHide('next_to_fit_mesh_text');
 	}
 	if (stage == 3)
@@ -531,10 +746,9 @@ function next()
 		ShowHide('proteinSelector_panel');
 		ShowHide('click_next_to_see_density_text');
 	}
-	if (stage == 4)
+	if (stage >= 4)
 	{
 		displayConcentration();
-		ShowHide('proteinSelector_panel');
 		ShowHide('click_next_to_see_density_text');
 		ShowHide('next_button');
 	}
