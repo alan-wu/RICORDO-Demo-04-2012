@@ -707,7 +707,7 @@ function displayConcentration()
 /* This function is called when the primary scene is constructed and read */
 function sceneViewerReadyFunction()
 {
-	netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead");
+
 	var zincPlugin = document.getElementById('zincplugin1');
 	zincPlugin.sceneViewer.setBackgroundColourRGB(1.0, 1.0, 1.0);
 	ZN_OK = zincPlugin.OK;
